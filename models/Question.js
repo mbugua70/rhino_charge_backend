@@ -19,12 +19,18 @@ const questionSchema = new Schema(
       trim: true,
     },
     options: {
-      type: [String],
+      type: [
+        {
+          key: { type: String, required: true },
+          text: { type: String, required: true },
+          isCorrect: { type: Boolean, required: true },
+        },
+      ],
       default: [],
     },
+    // Used by word_puzzle and final_challenge (string answer)
     correctAnswer: {
       type: String,
-      required: [true, "Correct answer is required"],
       trim: true,
     },
     scrambledWord: {

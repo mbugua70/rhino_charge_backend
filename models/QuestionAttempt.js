@@ -29,11 +29,13 @@ const questionAttemptSchema = new Schema(
       required: true,
       enum: ["trivia", "timed_trivia", "word_puzzle", "final_challenge"],
     },
-    selectedAnswer: {
+    // For trivia/timed_trivia: the key selected (e.g. "A")
+    selectedOptionKey: {
       type: String,
       default: null,
     },
-    submittedAnswer: {
+    // For trivia: text of selected option; for word_puzzle: submitted word
+    selectedAnswerText: {
       type: String,
       default: null,
     },
