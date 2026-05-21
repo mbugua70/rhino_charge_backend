@@ -40,3 +40,6 @@ yarn-error.*
 
 # Firebase service account keys
 *firebase-adminsdk*.json
+
+# Claude files
+CLAUDE.*
