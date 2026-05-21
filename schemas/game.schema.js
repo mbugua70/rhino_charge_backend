@@ -15,17 +15,16 @@ const startLevelSchema = z.object({
 const answerItemSchema = z
   .object({
     questionId: z.string().min(1, "questionId is required"),
-    // trivia / timed_trivia: option key e.g. "A"
     selectedOptionKey: z.string().optional(),
-    // word_puzzle / final_challenge: typed answer
-    submittedAnswer: z.string().optional(),
+    selectedAnswerText: z.string().optional(),
     timeTaken: z.number().nonnegative().optional(),
   })
   .openapi("AnswerItem");
 
 const submitLevelBodySchema = z
   .object({
-    answers: z.array(answerItemSchema).min(1, "At least one answer is required"),
+    score: z.number().int().min(0, "Score is required"),
+    answers: z.array(answerItemSchema).optional(),
   })
   .openapi("SubmitLevelBody");
 

@@ -23,16 +23,9 @@ const maskPhone = (phone) => {
   return phone.slice(0, 3) + "***" + phone.slice(-2);
 };
 
-const sanitizeQuestion = (question) => {
+const toPlainQuestion = (question) => {
   const doc = question.toObject ? question.toObject() : { ...question };
-  if (Array.isArray(doc.options)) {
-    doc.options = doc.options.map(({ key, text }) => ({ key, text }));
-  }
-  delete doc.correctAnswer;
-  delete doc.isActive;
   delete doc.__v;
-  delete doc.createdAt;
-  delete doc.updatedAt;
   return doc;
 };
 
@@ -131,7 +124,7 @@ module.exports.startLevel = async (req, res) => {
       }).populate("questionId");
 
       const questions = existingQuestionAttempts.map((a) =>
-        sanitizeQuestion(a.questionId)
+        toPlainQuestion(a.questionId)
       );
 
       return res.status(200).json({
@@ -193,7 +186,7 @@ module.exports.startLevel = async (req, res) => {
       level,
       gameType,
       attemptId: levelAttempt._id,
-      questions: questions.map(sanitizeQuestion),
+      questions: questions.map(toPlainQuestion),
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -205,8 +198,7 @@ module.exports.submitLevel = async (req, res) => {
   try {
     const { player } = req;
     const level = Number(req.params.level);
-    const { answers } = req.body;
-    const gameType = GAME_TYPES[level];
+    const { score, answers } = req.body;
 
     const levelAttempt = await LevelAttempt.findOne({
       playerId: player._id,
@@ -220,103 +212,29 @@ module.exports.submitLevel = async (req, res) => {
       return res.status(400).json({ error: `Level ${level} is already completed` });
     }
 
-    // Fetch assigned question attempts
-    const assignedAttempts = await QuestionAttempt.find({
-      playerId: player._id,
-      levelAttemptId: levelAttempt._id,
-    });
-    const assignedIds = new Set(
-      assignedAttempts.map((a) => a.questionId.toString())
-    );
-
-    // Validate submitted questions were assigned to this player
-    for (const answer of answers) {
-      if (!assignedIds.has(answer.questionId)) {
-        return res.status(400).json({
-          error: `Question ${answer.questionId} was not assigned to this player`,
-        });
-      }
-    }
-
-    // Fetch questions
-    const questionIds = answers.map((a) => a.questionId);
-    const questionDocs = await Question.find({ _id: { $in: questionIds } });
-    const questionMap = Object.fromEntries(
-      questionDocs.map((q) => [q._id.toString(), q])
-    );
-
-    let totalLevelScore = 0;
-    let maxScore = 0;
-    const updates = [];
-
-    for (const answer of answers) {
-      const question = questionMap[answer.questionId];
-      if (!question) continue;
-
-      maxScore += question.points;
-
-      let isCorrect = false;
-      let scoreAwarded = 0;
-      let selectedOptionKey = null;
-      let selectedAnswerText = null;
-
-      if (question.options && question.options.length > 0 && answer.selectedOptionKey) {
-        // Trivia-style: match by option key
-        const selectedOption = question.options.find(
-          (o) => o.key === answer.selectedOptionKey
-        );
-        isCorrect = selectedOption?.isCorrect === true;
-        selectedOptionKey = answer.selectedOptionKey;
-        selectedAnswerText = selectedOption?.text || null;
-      } else if (question.correctAnswer && answer.submittedAnswer) {
-        // Word puzzle: case-insensitive string match
-        isCorrect =
-          answer.submittedAnswer.trim().toLowerCase() ===
-          question.correctAnswer.trim().toLowerCase();
-        selectedAnswerText = answer.submittedAnswer;
-      }
-
-      if (isCorrect) {
-        scoreAwarded = question.points;
-
-        // Speed bonus for timed_trivia
-        if (
-          gameType === "timed_trivia" &&
-          question.timeLimitSeconds &&
-          answer.timeTaken != null &&
-          answer.timeTaken < question.timeLimitSeconds
-        ) {
-          scoreAwarded += Math.ceil(question.points * 0.5);
-        }
-      }
-
-      totalLevelScore += scoreAwarded;
-
-      updates.push(
+    // Record each answer for audit trail
+    if (answers && answers.length > 0) {
+      const updates = answers.map((a) =>
         QuestionAttempt.findOneAndUpdate(
           {
             playerId: player._id,
             levelAttemptId: levelAttempt._id,
-            questionId: answer.questionId,
+            questionId: a.questionId,
           },
           {
-            selectedOptionKey,
-            selectedAnswerText,
-            isCorrect,
-            scoreAwarded,
-            timeTaken: answer.timeTaken ?? null,
+            selectedOptionKey: a.selectedOptionKey ?? null,
+            selectedAnswerText: a.selectedAnswerText ?? null,
+            timeTaken: a.timeTaken ?? null,
             answeredAt: new Date(),
           }
         )
       );
+      await Promise.all(updates);
     }
 
-    await Promise.all(updates);
-
-    // Mark level as completed
+    // Mark level as completed with frontend-provided score
     levelAttempt.status = "completed";
-    levelAttempt.score = totalLevelScore;
-    levelAttempt.maxScore = maxScore;
+    levelAttempt.score = score;
     levelAttempt.completedAt = new Date();
     await levelAttempt.save();
 
@@ -330,7 +248,7 @@ module.exports.submitLevel = async (req, res) => {
       player.currentLevel = nextLevel;
     }
 
-    // Recalculate totalScore from all completed LevelAttempts
+    // Recalculate totalScore by summing all completed LevelAttempts
     const allCompleted = await LevelAttempt.find({
       playerId: player._id,
       status: "completed",
@@ -341,7 +259,7 @@ module.exports.submitLevel = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Level completed successfully",
-      levelScore: totalLevelScore,
+      levelScore: score,
       totalScore: player.totalScore,
       nextLevel,
       completedLevels: player.completedLevels,
