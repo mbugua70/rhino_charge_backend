@@ -13,7 +13,7 @@ const GAME_TYPES = {
 
 const LEVEL_PREREQUISITES = { 1: null, 2: 1, 3: 2, 4: 3 };
 
-const QUESTIONS_PER_LEVEL = 5;
+const QUESTIONS_PER_LEVEL = 1;
 
 const createToken = (player_id) =>
   jwt.sign({ player_id }, process.env.JWT_SECRET, { expiresIn: "7d" });
