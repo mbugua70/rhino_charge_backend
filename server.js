@@ -1,61 +1,57 @@
-require('dotenv').config()
+require("dotenv").config();
 
-const express = require('express')
-const mongoose = require('mongoose');
+const express = require("express");
+const mongoose = require("mongoose");
 const cors = require("cors");
-const questionsRouter = require("./routes/questionRoutes");
-const userRouter = require("./routes/user");
-const colorsRouter = require("./routes/colorsAnswer");
-const formRouter = require("./routes/formRoutes");
-const adminRouter = require("./routes/adminRoutes");
-const reportsRouter = require("./routes/reportsRoutes");
-const MONGODB_STRING = process.env.MONGODB_STRING;
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./swagger/swagger");
 
-// express app
+// Models
+require("./models/Player");
+require("./models/Question");
+require("./models/LevelAttempt");
+require("./models/QuestionAttempt");
+
+// Routes
+const gameRoutes = require("./routes/gameRoutes");
+const questionRoutes = require("./routes/questionRoutes");
+
 const app = express();
 
-// app.use(cors());
-const corsOptions = {
-  origin: '*', // You might want to change this to a specific domain in production for security reasons
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'], // Explicitly allow PATCH
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow Content-Type and Authorization headers
-};
+// CORS
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PATCH", "DELETE", "PUT"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-app.use(cors(corsOptions));
-
-// middleware - registered BEFORE connecting to database
+// Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Request logger
 app.use((req, res, next) => {
-  console.log(req.path, req.method);
+  console.log(req.method, req.path);
   next();
 });
 
-// connecting to the database
+// Swagger
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Routes
+app.get("/", (req, res) => res.json({ message: "Safaricom QR Game API" }));
+app.use("/api/game", gameRoutes);
+app.use("/api/questions", questionRoutes);
+
+// Connect to MongoDB then start server
 mongoose
-  .connect(MONGODB_STRING)
+  .connect(process.env.MONGODB_STRING)
   .then(() => {
     app.listen(process.env.PORT, () => {
-      console.log(
-        "Connected to the database and listening on port",
-        process.env.PORT
-      );
+      console.log(`Connected to DB. Server running on port ${process.env.PORT}`);
+      console.log(`Swagger docs at http://localhost:${process.env.PORT}/api-docs`);
     });
   })
   .catch((err) => console.log(err));
-
-// routes
-app.get("/", (req, res) => {
-  res.json({ mssg: "Welcome to the app" });
-});
-
-// listen for requests
-// workout routes
-
-app.use("/api/questions", questionsRouter);
-app.use("/api/players", userRouter);
-app.use("/api/colors/", colorsRouter);
-app.use("/api/submissions", formRouter);
-app.use("/api/admin", adminRouter);
-app.use("/api/reports", reportsRouter);
