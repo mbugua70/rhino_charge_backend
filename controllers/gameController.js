@@ -18,11 +18,6 @@ const QUESTIONS_PER_LEVEL = 1;
 const createToken = (player_id) =>
   jwt.sign({ player_id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-const maskPhone = (phone) => {
-  if (phone.length <= 5) return phone;
-  return phone.slice(0, 3) + "***" + phone.slice(-2);
-};
-
 const toPlainQuestion = (question) => {
   const doc = question.toObject ? question.toObject() : { ...question };
   delete doc.__v;
@@ -32,13 +27,13 @@ const toPlainQuestion = (question) => {
 // POST /api/game/register
 module.exports.register = async (req, res) => {
   try {
-    const { name, phone } = req.body;
+    const { name } = req.body;
 
-    let player = await Player.findOne({ phone });
+    let player = await Player.findOne({ name });
     const isNew = !player;
 
     if (!player) {
-      player = await Player.create({ name, phone });
+      player = await Player.create({ name });
     }
 
     const token = createToken(player._id);
@@ -50,7 +45,6 @@ module.exports.register = async (req, res) => {
       player: {
         _id: player._id,
         name: player.name,
-        phone: player.phone,
         isActive: player.isActive,
       },
       progress: {
@@ -78,7 +72,6 @@ module.exports.me = async (req, res) => {
       player: {
         _id: player._id,
         name: player.name,
-        phone: player.phone,
         totalScore: player.totalScore,
         currentLevel: player.currentLevel,
         completedLevels: player.completedLevels,
@@ -323,7 +316,6 @@ module.exports.results = async (req, res) => {
       player: {
         _id: player._id,
         name: player.name,
-        phone: maskPhone(player.phone),
         totalScore: player.totalScore,
         completedLevels: player.completedLevels,
       },
@@ -355,7 +347,7 @@ module.exports.leaderboard = async (req, res) => {
         .sort({ totalScore: -1 })
         .skip(skip)
         .limit(limitNum)
-        .select("name phone totalScore completedLevels"),
+        .select("name totalScore completedLevels"),
       Player.countDocuments({ isActive: true }),
     ]);
 
@@ -368,7 +360,6 @@ module.exports.leaderboard = async (req, res) => {
       leaderboard: players.map((p, i) => ({
         rank: skip + i + 1,
         name: p.name,
-        phone: maskPhone(p.phone),
         totalScore: p.totalScore,
         completedLevels: p.completedLevels,
       })),

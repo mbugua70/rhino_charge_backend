@@ -7,11 +7,6 @@ const playerSchema = new Schema(
     name: {
       type: String,
       required: [true, "Name is required"],
-      trim: true,
-    },
-    phone: {
-      type: String,
-      required: [true, "Phone is required"],
       unique: true,
       trim: true,
       index: true,
