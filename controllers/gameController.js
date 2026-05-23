@@ -24,10 +24,8 @@ const toPlainQuestion = (question) => {
   return doc;
 };
 
-const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 const findPlayerByName = (name) =>
-  Player.findOne({ name: { $regex: `^${escapeRegex(name.trim())}$`, $options: "i" } });
+  Player.findOne({ name: name.trim() }).collation({ locale: "en", strength: 2 });
 
 // POST /api/game/register
 module.exports.register = async (req, res) => {

@@ -48,7 +48,15 @@ app.use("/api/questions", questionRoutes);
 // Connect to MongoDB then start server
 mongoose
   .connect(process.env.MONGODB_STRING)
-  .then(() => {
+  .then(async () => {
+    // Drop stale phone index left over from before name became the unique key
+    try {
+      await mongoose.connection.collection("players").dropIndex("phone_1");
+      console.log("Dropped stale phone_1 index");
+    } catch (_) {
+      // Index doesn't exist — nothing to do
+    }
+
     app.listen(process.env.PORT, () => {
       console.log(`Connected to DB. Server running on port ${process.env.PORT}`);
       console.log(`Swagger docs at http://localhost:${process.env.PORT}/api-docs`);
