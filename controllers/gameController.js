@@ -24,16 +24,29 @@ const toPlainQuestion = (question) => {
   return doc;
 };
 
+const findPlayerByName = (name) =>
+  Player.findOne({ name: { $regex: `^${name.trim()}$`, $options: "i" } });
+
 // POST /api/game/register
 module.exports.register = async (req, res) => {
   try {
     const { name } = req.body;
 
-    let player = await Player.findOne({ name });
-    const isNew = !player;
+    let player = await findPlayerByName(name);
+    let isNew = !player;
 
     if (!player) {
-      player = await Player.create({ name });
+      try {
+        player = await Player.create({ name: name.trim() });
+      } catch (err) {
+        if (err.code === 11000) {
+          // Race condition: another request created this player just now
+          player = await findPlayerByName(name);
+          isNew = false;
+        } else {
+          throw err;
+        }
+      }
     }
 
     const token = createToken(player._id);
