@@ -24,8 +24,10 @@ const toPlainQuestion = (question) => {
   return doc;
 };
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const findPlayerByName = (name) =>
-  Player.findOne({ name: { $regex: `^${name.trim()}$`, $options: "i" } });
+  Player.findOne({ name: { $regex: `^${escapeRegex(name.trim())}$`, $options: "i" } });
 
 // POST /api/game/register
 module.exports.register = async (req, res) => {
@@ -43,6 +45,7 @@ module.exports.register = async (req, res) => {
           // Race condition: another request created this player just now
           player = await findPlayerByName(name);
           isNew = false;
+          if (!player) throw new Error("Registration failed, please try again.");
         } else {
           throw err;
         }
