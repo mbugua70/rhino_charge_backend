@@ -21,6 +21,7 @@ const questionRoutes = require("./routes/questionRoutes");
 const authRoutes = require("./routes/authRoutes");
 const spinRoutes = require("./routes/spinRoutes");
 const adminSpinRoutes = require("./routes/adminSpinRoutes");
+const adminPlayerRoutes = require("./routes/adminPlayerRoutes");
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use("/api/questions", questionRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/spin", spinRoutes);
 app.use("/api/admin/spin", adminSpinRoutes);
+app.use("/api/admin/players", adminPlayerRoutes);
 
 // Connect to MongoDB then start server
 mongoose

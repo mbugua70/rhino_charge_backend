@@ -754,6 +754,87 @@ registry.registerPath({
   },
 });
 
+// ── /api/admin/players ───────────────────────────────────────────────────────
+registry.registerPath({
+  method: "get",
+  path: "/api/admin/players",
+  tags: ["Admin — Players"],
+  summary: "List all game players (paginated, filterable)",
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      page: z.coerce.number().optional(),
+      limit: z.coerce.number().optional(),
+      isActive: z.string().optional(),
+      completedLevels: z.coerce.number().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Paginated player list",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            total: z.number(),
+            page: z.number(),
+            limit: z.number(),
+            totalPages: z.number(),
+            players: z.array(
+              z.object({
+                _id: z.string(),
+                name: z.string(),
+                player_code: z.string(),
+                totalScore: z.number(),
+                currentLevel: z.number(),
+                completedLevels: z.array(z.number()),
+                isActive: z.boolean(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+              })
+            ),
+          }),
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+// ── /api/admin/players/{id} ───────────────────────────────────────────────────
+registry.registerPath({
+  method: "get",
+  path: "/api/admin/players/{id}",
+  tags: ["Admin — Players"],
+  summary: "Get a single player with their level attempts",
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    200: {
+      description: "Player with level attempts",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            player: z.object({
+              _id: z.string(),
+              name: z.string(),
+              player_code: z.string(),
+              totalScore: z.number(),
+              currentLevel: z.number(),
+              completedLevels: z.array(z.number()),
+              isActive: z.boolean(),
+            }),
+            levelAttempts: z.array(z.object({})),
+          }),
+        },
+      },
+    },
+    404: { description: "Player not found" },
+    401: { description: "Unauthorized" },
+  },
+});
+
 // ── Generate spec ─────────────────────────────────────────────────────────────
 const generator = new OpenApiGeneratorV3(registry.definitions);
 
