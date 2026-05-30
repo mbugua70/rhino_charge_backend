@@ -85,6 +85,17 @@ const getPlayerResultSchema = z.object({
   params: playerCodeParamSchema,
 });
 
+const spinResultBodySchema = z
+  .object({
+    player_code: z.string().min(1, "player_code is required").trim().toUpperCase(),
+    segment_id: z.string().min(1, "segment_id is required"),
+  })
+  .openapi("SpinResultBody");
+
+const spinResultSchema = z.object({
+  body: spinResultBodySchema,
+});
+
 const adminPaginationSchema = z.object({
   query: z.object({
     page: z.coerce.number().int().min(1).default(1),
@@ -104,6 +115,8 @@ module.exports = {
   registerSpinSchema,
   playSpinBodySchema,
   playSpinSchema,
+  spinResultBodySchema,
+  spinResultSchema,
   getPlayerResultSchema,
   adminPaginationSchema,
 };

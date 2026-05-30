@@ -54,6 +54,7 @@ module.exports.register = async (req, res) => {
 };
 
 // POST /api/spin/play
+// Checks eligibility and returns segments for the wheel — does not save a result
 module.exports.play = async (req, res) => {
   try {
     const { player_code } = req.body;
@@ -81,21 +82,65 @@ module.exports.play = async (req, res) => {
       });
     }
 
-    const eligibleSegments = await SpinSegment.find({
-      is_active: true,
-      is_winnable: true,
-      quantity: { $gt: 0 },
-    });
+    const segments = await SpinSegment.find({ is_active: true })
+      .sort({ sort_order: 1 })
+      .select("-__v");
 
-    if (eligibleSegments.length === 0) {
-      return res.status(400).json({ error: "No prizes available at this time" });
+    return res.status(200).json({
+      success: true,
+      message: "Player is eligible to spin",
+      already_spun: false,
+      player_name: player.name,
+      segments,
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// POST /api/spin/result
+// Frontend submits the segment the wheel stopped on — backend validates and saves
+module.exports.submitResult = async (req, res) => {
+  try {
+    const { player_code, segment_id } = req.body;
+
+    const player = await findPlayerByCode(player_code);
+    if (!player) {
+      return res.status(404).json({ error: "Invalid player code." });
     }
 
-    const selected = eligibleSegments[Math.floor(Math.random() * eligibleSegments.length)];
+    const spinRecord = await PlayerSpin.findOne({ player_id: player._id });
+    if (!spinRecord) {
+      return res.status(404).json({
+        error: "Player not registered for spin. Call /api/spin/register first.",
+      });
+    }
+
+    if (spinRecord.has_spun) {
+      const segment = await SpinSegment.findById(spinRecord.segment_id).select("-__v");
+      return res.status(200).json({
+        success: true,
+        message: "Player has already spun",
+        already_spun: true,
+        spin: spinRecord,
+        segment,
+      });
+    }
+
+    const targetSegment = await SpinSegment.findById(segment_id);
+    if (!targetSegment) {
+      return res.status(404).json({ error: "Segment not found" });
+    }
+    if (!targetSegment.is_active || !targetSegment.is_winnable) {
+      return res.status(400).json({ error: "This segment is not eligible as a prize" });
+    }
+    if (targetSegment.quantity <= 0) {
+      return res.status(400).json({ error: "This prize has run out" });
+    }
 
     // Atomically decrement quantity to guard against race conditions
     const segment = await SpinSegment.findOneAndUpdate(
-      { _id: selected._id, quantity: { $gt: 0 } },
+      { _id: targetSegment._id, quantity: { $gt: 0 } },
       { $inc: { quantity: -1 } },
       { new: true }
     );
@@ -121,8 +166,7 @@ module.exports.play = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Spin successful",
-      already_spun: false,
+      message: "Result saved successfully",
       spin: spinRecord,
       segment,
       prize_snapshot: prizeSnapshot,

@@ -16,6 +16,7 @@ const {
   updateSegmentBodySchema,
   registerSpinBodySchema,
   playSpinBodySchema,
+  spinResultBodySchema,
   updateQuantityBodySchema,
 } = require("../schemas/spin.schema");
 
@@ -41,6 +42,7 @@ registry.register("CreateSegmentBody", createSegmentBodySchema);
 registry.register("UpdateSegmentBody", updateSegmentBodySchema);
 registry.register("RegisterSpinBody", registerSpinBodySchema);
 registry.register("PlaySpinBody", playSpinBodySchema);
+registry.register("SpinResultBody", spinResultBodySchema);
 registry.register("UpdateQuantityBody", updateQuantityBodySchema);
 
 // ── Reusable inline schemas ───────────────────────────────────────────────────
@@ -488,29 +490,59 @@ registry.registerPath({
   method: "post",
   path: "/api/spin/play",
   tags: ["Spin"],
-  summary: "Spin the wheel — selects and records a winning prize",
+  summary: "Check eligibility and get segments for the wheel — does not save a result",
   request: {
     body: { content: { "application/json": { schema: playSpinBodySchema } } },
   },
   responses: {
     200: {
-      description: "Spin result (new or already spun)",
+      description: "Eligible to spin — returns segments. Or already spun — returns existing result.",
       content: {
         "application/json": {
           schema: z.object({
             success: z.boolean(),
             message: z.string(),
             already_spun: z.boolean(),
+            player_name: z.string().optional(),
+            segments: z.array(segmentSchema).optional(),
+            spin: spinRecordSchema.optional(),
+            segment: segmentSchema.optional(),
+          }),
+        },
+      },
+    },
+    404: { description: "Invalid player code or spin record not found" },
+  },
+});
+
+// ── /api/spin/result ──────────────────────────────────────────────────────────
+registry.registerPath({
+  method: "post",
+  path: "/api/spin/result",
+  tags: ["Spin"],
+  summary: "Submit the segment the wheel stopped on — backend validates and saves the result",
+  request: {
+    body: { content: { "application/json": { schema: spinResultBodySchema } } },
+  },
+  responses: {
+    200: {
+      description: "Result saved (or already spun)",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            message: z.string(),
+            already_spun: z.boolean().optional(),
             spin: spinRecordSchema,
-            segment: segmentSchema,
+            segment: segmentSchema.optional(),
             prize_snapshot: z.object({}).optional(),
           }),
         },
       },
     },
-    404: { description: "Player or spin record not found" },
-    400: { description: "No prizes available" },
-    409: { description: "Prize ran out — retry" },
+    404: { description: "Invalid player code, spin record, or segment not found" },
+    400: { description: "Segment not eligible or prize ran out" },
+    409: { description: "Prize just ran out — retry" },
   },
 });
 
