@@ -1,3 +1,4 @@
+
 const { z } = require("../config/zod");
 
 const segmentIdParamSchema = z.object({
