@@ -514,13 +514,13 @@ registry.registerPath({
   },
 });
 
-// ── /api/spin/player/{playerId}/result ────────────────────────────────────────
+// ── /api/spin/player/{playerCode}/result ─────────────────────────────────────
 registry.registerPath({
   method: "get",
-  path: "/api/spin/player/{playerId}/result",
+  path: "/api/spin/player/{playerCode}/result",
   tags: ["Spin"],
-  summary: "Get a player's spin result",
-  request: { params: z.object({ playerId: z.string() }) },
+  summary: "Get a player's spin result by player code",
+  request: { params: z.object({ playerCode: z.string() }) },
   responses: {
     200: {
       description: "Spin record",

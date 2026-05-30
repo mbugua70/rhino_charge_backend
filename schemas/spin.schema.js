@@ -59,7 +59,7 @@ const updateQuantitySchema = z.object({
 
 const registerSpinBodySchema = z
   .object({
-    player_id: z.string().min(1, "player_id is required"),
+    player_code: z.string().min(1, "player_code is required").trim().toUpperCase(),
   })
   .openapi("RegisterSpinBody");
 
@@ -69,7 +69,7 @@ const registerSpinSchema = z.object({
 
 const playSpinBodySchema = z
   .object({
-    player_id: z.string().min(1, "player_id is required"),
+    player_code: z.string().min(1, "player_code is required").trim().toUpperCase(),
   })
   .openapi("PlaySpinBody");
 
@@ -77,12 +77,12 @@ const playSpinSchema = z.object({
   body: playSpinBodySchema,
 });
 
-const playerIdParamSchema = z.object({
-  playerId: z.string().min(1, "playerId is required"),
+const playerCodeParamSchema = z.object({
+  playerCode: z.string().min(1, "playerCode is required"),
 });
 
 const getPlayerResultSchema = z.object({
-  params: playerIdParamSchema,
+  params: playerCodeParamSchema,
 });
 
 const adminPaginationSchema = z.object({

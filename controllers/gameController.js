@@ -50,6 +50,11 @@ module.exports.register = async (req, res) => {
       }
     }
 
+    // Generate player_code for existing players who don't have one yet
+    if (!player.player_code) {
+      await player.save();
+    }
+
     const token = createToken(player._id);
 
     return res.status(isNew ? 201 : 200).json({
@@ -59,6 +64,7 @@ module.exports.register = async (req, res) => {
       player: {
         _id: player._id,
         name: player.name,
+        player_code: player.player_code,
         isActive: player.isActive,
       },
       progress: {

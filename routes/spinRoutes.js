@@ -12,6 +12,6 @@ const router = Router();
 router.get("/segments/public", spinController.publicSegments);
 router.post("/register", validateRequest(registerSpinSchema), spinController.register);
 router.post("/play", validateRequest(playSpinSchema), spinController.play);
-router.get("/player/:playerId/result", validateRequest(getPlayerResultSchema), spinController.playerResult);
+router.get("/player/:playerCode/result", validateRequest(getPlayerResultSchema), spinController.playerResult);
 
 module.exports = router;

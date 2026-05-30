@@ -2,6 +2,9 @@ const Player = require("../models/Player");
 const SpinSegment = require("../models/SpinSegment");
 const PlayerSpin = require("../models/PlayerSpin");
 
+const findPlayerByCode = (player_code) =>
+  Player.findOne({ player_code: player_code.trim().toUpperCase() });
+
 // GET /api/spin/segments/public
 module.exports.publicSegments = async (req, res) => {
   try {
@@ -18,14 +21,14 @@ module.exports.publicSegments = async (req, res) => {
 // POST /api/spin/register
 module.exports.register = async (req, res) => {
   try {
-    const { player_id } = req.body;
+    const { player_code } = req.body;
 
-    const player = await Player.findById(player_id);
+    const player = await findPlayerByCode(player_code);
     if (!player) {
-      return res.status(404).json({ error: "Player not found" });
+      return res.status(404).json({ error: "Invalid player code. Please check your code and try again." });
     }
 
-    let spinRecord = await PlayerSpin.findOne({ player_id });
+    let spinRecord = await PlayerSpin.findOne({ player_id: player._id });
     if (spinRecord) {
       return res.status(200).json({
         success: true,
@@ -53,14 +56,14 @@ module.exports.register = async (req, res) => {
 // POST /api/spin/play
 module.exports.play = async (req, res) => {
   try {
-    const { player_id } = req.body;
+    const { player_code } = req.body;
 
-    const player = await Player.findById(player_id);
+    const player = await findPlayerByCode(player_code);
     if (!player) {
-      return res.status(404).json({ error: "Player not found" });
+      return res.status(404).json({ error: "Invalid player code. Please check your code and try again." });
     }
 
-    const spinRecord = await PlayerSpin.findOne({ player_id });
+    const spinRecord = await PlayerSpin.findOne({ player_id: player._id });
     if (!spinRecord) {
       return res.status(404).json({
         error: "Player not registered for spin. Call /api/spin/register first.",
@@ -129,17 +132,17 @@ module.exports.play = async (req, res) => {
   }
 };
 
-// GET /api/spin/player/:playerId/result
+// GET /api/spin/player/:playerCode/result
 module.exports.playerResult = async (req, res) => {
   try {
-    const { playerId } = req.params;
+    const { playerCode } = req.params;
 
-    const player = await Player.findById(playerId);
+    const player = await findPlayerByCode(playerCode);
     if (!player) {
-      return res.status(404).json({ error: "Player not found" });
+      return res.status(404).json({ error: "Invalid player code" });
     }
 
-    const spinRecord = await PlayerSpin.findOne({ player_id: playerId }).populate(
+    const spinRecord = await PlayerSpin.findOne({ player_id: player._id }).populate(
       "segment_id",
       "-__v"
     );
