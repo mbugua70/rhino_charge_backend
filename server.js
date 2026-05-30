@@ -11,10 +11,16 @@ require("./models/Player");
 require("./models/Question");
 require("./models/LevelAttempt");
 require("./models/QuestionAttempt");
+require("./models/AdminUser");
+require("./models/SpinSegment");
+require("./models/PlayerSpin");
 
 // Routes
 const gameRoutes = require("./routes/gameRoutes");
 const questionRoutes = require("./routes/questionRoutes");
+const authRoutes = require("./routes/authRoutes");
+const spinRoutes = require("./routes/spinRoutes");
+const adminSpinRoutes = require("./routes/adminSpinRoutes");
 
 const app = express();
 
@@ -44,6 +50,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get("/", (req, res) => res.json({ message: "Safaricom QR Game API" }));
 app.use("/api/game", gameRoutes);
 app.use("/api/questions", questionRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/spin", spinRoutes);
+app.use("/api/admin/spin", adminSpinRoutes);
 
 // Connect to MongoDB then start server
 mongoose
