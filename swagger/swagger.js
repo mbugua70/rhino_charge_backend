@@ -10,6 +10,14 @@ const {
   createQuestionBodySchema,
   updateQuestionBodySchema,
 } = require("../schemas/question.schema");
+const { registerAdminBodySchema, loginBodySchema } = require("../schemas/auth.schema");
+const {
+  createSegmentBodySchema,
+  updateSegmentBodySchema,
+  registerSpinBodySchema,
+  playSpinBodySchema,
+  updateQuantityBodySchema,
+} = require("../schemas/spin.schema");
 
 const registry = new OpenAPIRegistry();
 
@@ -27,6 +35,13 @@ registry.register("SubmitLevelBody", submitLevelBodySchema);
 registry.register("QuestionOption", optionItemSchema);
 registry.register("CreateQuestionBody", createQuestionBodySchema);
 registry.register("UpdateQuestionBody", updateQuestionBodySchema);
+registry.register("RegisterAdminBody", registerAdminBodySchema);
+registry.register("LoginBody", loginBodySchema);
+registry.register("CreateSegmentBody", createSegmentBodySchema);
+registry.register("UpdateSegmentBody", updateSegmentBodySchema);
+registry.register("RegisterSpinBody", registerSpinBodySchema);
+registry.register("PlaySpinBody", playSpinBodySchema);
+registry.register("UpdateQuantityBody", updateQuantityBodySchema);
 
 // ── Reusable inline schemas ───────────────────────────────────────────────────
 const progressSchema = z.object({
@@ -294,6 +309,416 @@ registry.registerPath({
   responses: {
     200: { description: "Question deleted" },
     404: { description: "Question not found" },
+  },
+});
+
+// ── Reusable spin schemas ─────────────────────────────────────────────────────
+const segmentSchema = z.object({
+  _id: z.string(),
+  text: z.string(),
+  fillStyle: z.string(),
+  strokeStyle: z.string(),
+  textFillStyle: z.string(),
+  gift_number: z.number(),
+  quantity: z.number(),
+  is_active: z.boolean(),
+  is_winnable: z.boolean(),
+  sort_order: z.number(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const spinRecordSchema = z.object({
+  _id: z.string(),
+  player_id: z.string(),
+  player_name: z.string(),
+  has_spun: z.boolean(),
+  spun_at: z.string().nullable(),
+  segment_id: z.string().nullable(),
+  prize_name: z.string().nullable(),
+  prize_snapshot: z.object({}).nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const adminSchema = z.object({
+  _id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  role: z.enum(["admin", "super_admin"]),
+  isActive: z.boolean(),
+});
+
+const paginationMeta = z.object({
+  total: z.number(),
+  page: z.number(),
+  limit: z.number(),
+  totalPages: z.number(),
+});
+
+// ── /api/auth/register-admin ──────────────────────────────────────────────────
+registry.registerPath({
+  method: "post",
+  path: "/api/auth/register-admin",
+  tags: ["Auth"],
+  summary: "Register a new admin user",
+  request: {
+    body: { content: { "application/json": { schema: registerAdminBodySchema } } },
+  },
+  responses: {
+    201: {
+      description: "Admin registered",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string(), token: z.string(), admin: adminSchema }),
+        },
+      },
+    },
+    409: { description: "Email already registered" },
+    400: { description: "Validation error" },
+  },
+});
+
+// ── /api/auth/login ───────────────────────────────────────────────────────────
+registry.registerPath({
+  method: "post",
+  path: "/api/auth/login",
+  tags: ["Auth"],
+  summary: "Admin login",
+  request: {
+    body: { content: { "application/json": { schema: loginBodySchema } } },
+  },
+  responses: {
+    200: {
+      description: "Login successful",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string(), token: z.string(), admin: adminSchema }),
+        },
+      },
+    },
+    401: { description: "Invalid credentials" },
+    403: { description: "Account inactive" },
+  },
+});
+
+// ── /api/auth/me ──────────────────────────────────────────────────────────────
+registry.registerPath({
+  method: "get",
+  path: "/api/auth/me",
+  tags: ["Auth"],
+  summary: "Get current admin profile",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "Admin profile",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), admin: adminSchema }),
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+// ── /api/auth/logout ──────────────────────────────────────────────────────────
+registry.registerPath({
+  method: "post",
+  path: "/api/auth/logout",
+  tags: ["Auth"],
+  summary: "Admin logout",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "Logged out",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string() }),
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+// ── /api/spin/segments/public ─────────────────────────────────────────────────
+registry.registerPath({
+  method: "get",
+  path: "/api/spin/segments/public",
+  tags: ["Spin"],
+  summary: "Get all active segments for the wheel",
+  responses: {
+    200: {
+      description: "Active segments",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), segments: z.array(segmentSchema) }),
+        },
+      },
+    },
+  },
+});
+
+// ── /api/spin/register ────────────────────────────────────────────────────────
+registry.registerPath({
+  method: "post",
+  path: "/api/spin/register",
+  tags: ["Spin"],
+  summary: "Register a player for spin the wheel",
+  request: {
+    body: { content: { "application/json": { schema: registerSpinBodySchema } } },
+  },
+  responses: {
+    201: {
+      description: "Player registered for spin",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string(), spin: spinRecordSchema }),
+        },
+      },
+    },
+    200: { description: "Player already registered — returns existing record" },
+    404: { description: "Player not found" },
+  },
+});
+
+// ── /api/spin/play ────────────────────────────────────────────────────────────
+registry.registerPath({
+  method: "post",
+  path: "/api/spin/play",
+  tags: ["Spin"],
+  summary: "Spin the wheel — selects and records a winning prize",
+  request: {
+    body: { content: { "application/json": { schema: playSpinBodySchema } } },
+  },
+  responses: {
+    200: {
+      description: "Spin result (new or already spun)",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            message: z.string(),
+            already_spun: z.boolean(),
+            spin: spinRecordSchema,
+            segment: segmentSchema,
+            prize_snapshot: z.object({}).optional(),
+          }),
+        },
+      },
+    },
+    404: { description: "Player or spin record not found" },
+    400: { description: "No prizes available" },
+    409: { description: "Prize ran out — retry" },
+  },
+});
+
+// ── /api/spin/player/{playerId}/result ────────────────────────────────────────
+registry.registerPath({
+  method: "get",
+  path: "/api/spin/player/{playerId}/result",
+  tags: ["Spin"],
+  summary: "Get a player's spin result",
+  request: { params: z.object({ playerId: z.string() }) },
+  responses: {
+    200: {
+      description: "Spin record",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), spin: spinRecordSchema }),
+        },
+      },
+    },
+    404: { description: "Player or spin record not found" },
+  },
+});
+
+// ── /api/admin/spin/segments ──────────────────────────────────────────────────
+registry.registerPath({
+  method: "get",
+  path: "/api/admin/spin/segments",
+  tags: ["Admin — Spin Segments"],
+  summary: "List all segments",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "All segments",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), segments: z.array(segmentSchema) }),
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/admin/spin/segments",
+  tags: ["Admin — Spin Segments"],
+  summary: "Create a new segment",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: { content: { "application/json": { schema: createSegmentBodySchema } } },
+  },
+  responses: {
+    201: {
+      description: "Segment created",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string(), segment: segmentSchema }),
+        },
+      },
+    },
+    400: { description: "Validation error" },
+    401: { description: "Unauthorized" },
+  },
+});
+
+// ── /api/admin/spin/segments/{id} ─────────────────────────────────────────────
+registry.registerPath({
+  method: "patch",
+  path: "/api/admin/spin/segments/{id}",
+  tags: ["Admin — Spin Segments"],
+  summary: "Update a segment",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { "application/json": { schema: updateSegmentBodySchema } } },
+  },
+  responses: {
+    200: {
+      description: "Segment updated",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string(), segment: segmentSchema }),
+        },
+      },
+    },
+    404: { description: "Segment not found" },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/admin/spin/segments/{id}",
+  tags: ["Admin — Spin Segments"],
+  summary: "Delete a segment",
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    200: {
+      description: "Segment deleted",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string() }),
+        },
+      },
+    },
+    404: { description: "Segment not found" },
+    401: { description: "Unauthorized" },
+  },
+});
+
+// ── /api/admin/spin/segments/{id}/toggle-winnable ─────────────────────────────
+registry.registerPath({
+  method: "patch",
+  path: "/api/admin/spin/segments/{id}/toggle-winnable",
+  tags: ["Admin — Spin Segments"],
+  summary: "Toggle is_winnable on a segment",
+  security: [{ bearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    200: {
+      description: "is_winnable toggled",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string(), segment: segmentSchema }),
+        },
+      },
+    },
+    404: { description: "Segment not found" },
+    401: { description: "Unauthorized" },
+  },
+});
+
+// ── /api/admin/spin/segments/{id}/update-quantity ─────────────────────────────
+registry.registerPath({
+  method: "patch",
+  path: "/api/admin/spin/segments/{id}/update-quantity",
+  tags: ["Admin — Spin Segments"],
+  summary: "Update quantity of a segment",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { "application/json": { schema: updateQuantityBodySchema } } },
+  },
+  responses: {
+    200: {
+      description: "Quantity updated",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string(), segment: segmentSchema }),
+        },
+      },
+    },
+    404: { description: "Segment not found" },
+    401: { description: "Unauthorized" },
+  },
+});
+
+// ── /api/admin/spin/players ───────────────────────────────────────────────────
+registry.registerPath({
+  method: "get",
+  path: "/api/admin/spin/players",
+  tags: ["Admin — Spin Reports"],
+  summary: "List all spin-registered players (paginated)",
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      page: z.coerce.number().optional(),
+      limit: z.coerce.number().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Paginated player spin records",
+      content: {
+        "application/json": {
+          schema: paginationMeta.extend({ success: z.boolean(), players: z.array(spinRecordSchema) }),
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+// ── /api/admin/spin/results ───────────────────────────────────────────────────
+registry.registerPath({
+  method: "get",
+  path: "/api/admin/spin/results",
+  tags: ["Admin — Spin Reports"],
+  summary: "List all completed spin results (paginated)",
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      page: z.coerce.number().optional(),
+      limit: z.coerce.number().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Paginated spin results",
+      content: {
+        "application/json": {
+          schema: paginationMeta.extend({ success: z.boolean(), results: z.array(spinRecordSchema) }),
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
   },
 });
 
